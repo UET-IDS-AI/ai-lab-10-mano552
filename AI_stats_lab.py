@@ -53,7 +53,14 @@ def generate_nonlinear_data(n_samples=100, noise=0.1, random_state=42):
     y shape must be:
         (n_samples,)
     """
-    pass
+
+    np.random.seed(random_state)
+
+    X = np.random.rand(n_samples, 1)
+
+    y = np.sin(2 * np.pi * X[:, 0]) + np.random.normal(0, noise, n_samples)
+
+    return X, y
 
 
 def create_polynomial_model(degree):
@@ -70,7 +77,13 @@ def create_polynomial_model(degree):
     Returns:
         sklearn Pipeline object
     """
-    pass
+
+    model = Pipeline([
+        ("poly_features", PolynomialFeatures(degree=degree, include_bias=False)),
+        ("linear_regression", LinearRegression())
+    ])
+
+    return model
 
 
 def evaluate_polynomial_degrees(X, y, degrees, test_size=0.3, random_state=0):
@@ -101,7 +114,40 @@ def evaluate_polynomial_degrees(X, y, degrees, test_size=0.3, random_state=0):
             4. Predict on dev set and compute dev MSE.
         - Select best_degree using the lowest dev error.
     """
-    pass
+
+    X_train, X_dev, y_train, y_dev = train_test_split(
+        X, y,
+        test_size=test_size,
+        random_state=random_state
+    )
+
+    train_errors = []
+    dev_errors = []
+
+    for degree in degrees:
+
+        model = create_polynomial_model(degree)
+
+        model.fit(X_train, y_train)
+
+        y_train_pred = model.predict(X_train)
+        y_dev_pred = model.predict(X_dev)
+
+        train_mse = mean_squared_error(y_train, y_train_pred)
+        dev_mse = mean_squared_error(y_dev, y_dev_pred)
+
+        train_errors.append(train_mse)
+        dev_errors.append(dev_mse)
+
+    best_index = np.argmin(dev_errors)
+    best_degree = degrees[best_index]
+
+    return {
+        "degrees": degrees,
+        "train_errors": train_errors,
+        "dev_errors": dev_errors,
+        "best_degree": best_degree
+    }
 
 
 def diagnose_from_errors(train_error, dev_error, high_error_threshold=0.15, gap_threshold=0.05):
@@ -135,7 +181,27 @@ def diagnose_from_errors(train_error, dev_error, high_error_threshold=0.15, gap_
         Otherwise:
             "good_fit"
     """
-    pass
+
+    gap = dev_error - train_error
+
+    if train_error > high_error_threshold and gap <= gap_threshold:
+        diagnosis = "high_bias"
+
+    elif train_error <= high_error_threshold and gap > gap_threshold:
+        diagnosis = "high_variance"
+
+    elif train_error > high_error_threshold and gap > gap_threshold:
+        diagnosis = "high_bias_and_high_variance"
+
+    else:
+        diagnosis = "good_fit"
+
+    return {
+        "train_error": train_error,
+        "dev_error": dev_error,
+        "generalization_gap": gap,
+        "diagnosis": diagnosis
+    }
 
 
 # ============================================================
@@ -166,7 +232,34 @@ def regularization_comparison(X_train, y_train, X_dev, y_dev, alphas):
         - Compute train and dev MSE.
         - Select best_alpha using the lowest dev error.
     """
-    pass
+
+    train_errors = []
+    dev_errors = []
+
+    for alpha in alphas:
+
+        model = Ridge(alpha=alpha)
+
+        model.fit(X_train, y_train)
+
+        y_train_pred = model.predict(X_train)
+        y_dev_pred = model.predict(X_dev)
+
+        train_mse = mean_squared_error(y_train, y_train_pred)
+        dev_mse = mean_squared_error(y_dev, y_dev_pred)
+
+        train_errors.append(train_mse)
+        dev_errors.append(dev_mse)
+
+    best_index = np.argmin(dev_errors)
+    best_alpha = alphas[best_index]
+
+    return {
+        "alphas": alphas,
+        "train_errors": train_errors,
+        "dev_errors": dev_errors,
+        "best_alpha": best_alpha
+    }
 
 
 def recommend_action(diagnosis):
@@ -189,7 +282,21 @@ def recommend_action(diagnosis):
         anything else ->
             "unknown_diagnosis"
     """
-    pass
+
+    if diagnosis == "high_bias":
+        return "increase_model_complexity"
+
+    elif diagnosis == "high_variance":
+        return "add_regularization_or_more_data"
+
+    elif diagnosis == "high_bias_and_high_variance":
+        return "increase_complexity_then_regularize"
+
+    elif diagnosis == "good_fit":
+        return "keep_model_or_minor_tuning"
+
+    else:
+        return "unknown_diagnosis"
 
 
 if __name__ == "__main__":
